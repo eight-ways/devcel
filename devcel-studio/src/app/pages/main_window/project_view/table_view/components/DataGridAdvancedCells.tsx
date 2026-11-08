@@ -139,6 +139,7 @@ export const createAdvancedHeaderCell = ({
 };
 
 export interface AdvancedRowCellProps {
+  labelResizeHandle?: React.ReactNode;
   parentIndicator?: React.ReactNode;
   versionBadge?: React.ReactNode;
   row: any;
@@ -172,7 +173,7 @@ export const createAdvancedRowCell = ({
   editAllowed = true,
   onRowResize,
   onRowResizeEnd,
-  versionBadge, parentIndicator
+  versionBadge, parentIndicator, labelResizeHandle
 }: AdvancedRowCellProps) => {
   return (
     <div 
@@ -245,6 +246,8 @@ export const createAdvancedRowCell = ({
         </button>
       </div>}
       
+      {labelResizeHandle}
+
       {/* Row resize handle */}
       {onRowResize && (
         <RowResizeHandle

@@ -31,6 +31,7 @@ import { useGridSortLabels } from './useGridSortLabels';
 import { useGridFilterSortState } from './useGridFilterSortState';
 import { createTransposedRows, createTransposedColumns, createTransposedWidthResolver } from './gridTransposeView';
 import { RowResizeHandle } from './RowResizeHandle';
+import { RowLabelResizeHandle } from './RowLabelResizeHandle';
 import { parseClipboardTsv, serializeClipboardTsv } from './gridClipboard';
 import { writeGridClipboard, literalClipboardValue, type ClipboardCell } from './gridClipboardPayload';
 import { GridCommandDialog, type GridCommandRequest, type ReplaceCell } from './GridCommandDialog';
@@ -735,6 +736,16 @@ const DataGridView: React.FC<DataGridViewProps> = ({
 
   // Column width management
   const { getColumnWidth, queueColumnWidth, flushColumnWidths } = useDataGridColumnWidth(tableData.uuid, projectSessionId);
+  const labelWidthKey = '__devcel_row_label_width__';
+  const [labelWidthOverride, setLabelWidthOverride] = useState<{ table: string; session: string | undefined; width: number } | null>(null);
+  const labelWidth = labelWidthOverride?.table === tableData.uuid && labelWidthOverride.session === projectSessionId ? labelWidthOverride.width :
+    getColumnWidth(labelWidthKey, versionEditMode ? 180 : 120);
+  const resizeLabelWidth = useCallback((width: number) => {
+    if (!isTableInteractionAllowed(projectSessionId, tableData.uuid)) return;
+    setLabelWidthOverride({ table: tableData.uuid, session: projectSessionId, width });
+    queueColumnWidth(labelWidthKey, width);
+  }, [projectSessionId, tableData.uuid, queueColumnWidth]);
+
 
   // Row height management
   const { getRowHeight, setRowHeight } = useDataGridRowHeight(tableData.uuid);
@@ -1732,6 +1743,7 @@ const DataGridView: React.FC<DataGridViewProps> = ({
       const previousRowId = visibleRows[props.rowIdx - 1]?.rowId;
 
       return createAdvancedRowCell({
+        labelResizeHandle: <RowLabelResizeHandle onResize={resizeLabelWidth} onResizeEnd={flushColumnWidths} />,
         row: { ...props.row, rowLabel: props.row.tableRecord ? recordDisplayLabel(props.row.tableRecord, tableData, actualRowIndex) : props.row.rowLabel },
         insertAllowed: tableData.metadata.edit_permissions.add_rows,
         editAllowed: tableData.metadata.edit_permissions.edit_cells,
@@ -1802,10 +1814,11 @@ const DataGridView: React.FC<DataGridViewProps> = ({
           setIsResizing(false);
         }
       });
-    }, [visibleRows, tableData, createRow, isUpdating, mutation.busy, isResizing, setRowHeight, versionEditMode, projectSessionId, translation, snapshotReady, commitVersion, getCurrentPresentation]);
+    }, [visibleRows, tableData, createRow, isUpdating, mutation.busy, isResizing, setRowHeight, versionEditMode, projectSessionId, translation, snapshotReady, commitVersion, getCurrentPresentation, resizeLabelWidth, flushColumnWidths]);
   const rowIndicator = useMemo<RowIndicatorConfig<GridRow>>(() => ({
-    width: versionEditMode ? 180 : 120,
+    width: labelWidth,
     showNumbers: true, showActions: true, format: 'combined', headerContent: <div className="rdg-corner-inserts">
+      <RowLabelResizeHandle onResize={resizeLabelWidth} onResizeEnd={flushColumnWidths} />
       {atScrollTop && tableData.metadata.edit_permissions.add_rows && <button type="button" className="rdg-first-row-insert" title={translation.t('grid.addRowAbove')}
         disabled={isUpdating || mutation.busy || !snapshotReady || !tableData.metadata.edit_permissions.add_rows}
         onClick={event => { event.stopPropagation(); void createRow(visibleRows[0]?.rowId); }}><GridInsertIcon /></button>}
@@ -1814,7 +1827,7 @@ const DataGridView: React.FC<DataGridViewProps> = ({
     headerClassName: 'rdg-row-indicator-header', getRowLabel: row => row.tableRecord ? recordDisplayLabel(row.tableRecord, tableData, row.rowIndex) : row.rowLabel || '',
     renderIndicator: props => <RuntimeIndicator {...props} />,
     className: 'rdg-cell-frozen rdg-row-index rdg-cell-has-inline-buttons'
-  }), [versionEditMode, tableData, atScrollTop, translation, isUpdating, mutation.busy, snapshotReady, createRow, visibleRows]);
+  }), [labelWidth, resizeLabelWidth, flushColumnWidths, tableData, atScrollTop, translation, isUpdating, mutation.busy, snapshotReady, createRow, visibleRows]);
   const referenceRuntime = useMemo(() => ({ tableData, refreshVersion: referenceRefreshVersion }),
     [tableData, referenceRefreshVersion]);
   // Orientation is local UI state. Never write table metadata or infer data IDs
