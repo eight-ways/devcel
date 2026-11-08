@@ -768,5 +768,5 @@ button:hover > .rdg-insert-icon circle { fill: hsl(var(--muted)); }
 .rdg-advanced-column[data-insert-allowed="false"][data-narrow-insertion] > .rdg-column-filter-slot { max-width: 18px; }
 
 /* The frozen row-label boundary is draggable throughout the header and rows. */
-.rdg-row-label-resize { position: absolute; inset-block: 0; inset-inline-end: -5px; width: 10px; z-index: 20; cursor: col-resize; touch-action: none; }
+.rdg-row-label-resize { position: absolute; inset-block: 0; inset-inline-end: 0; width: 10px; z-index: 20; cursor: col-resize; touch-action: none; }
 .rdg-row-label-resize:hover { background: hsl(var(--primary) / 0.2); }
