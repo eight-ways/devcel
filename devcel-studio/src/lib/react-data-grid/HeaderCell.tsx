@@ -501,7 +501,7 @@ export default function HeaderCell<R, SR>({
       {content}
 
       {/* If resizable, show the left resize handle except on the first column */}
-      {resizable && column.idx > 0 && (
+      {resizable && column.idx > 0 && columns[column.idx - 1].resizable && (
         <ResizeHandle
           direction={direction}
           column={columns[column.idx - 1]} // Resize the previous column

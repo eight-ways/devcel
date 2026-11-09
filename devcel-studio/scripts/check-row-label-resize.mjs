@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { build } from 'esbuild';
+import { Window } from 'happy-dom';
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
+const project = process.cwd();
+const temp = await mkdtemp(resolve(project, '.row-label-resize-'));
+const window = new Window({ url: 'http://row-label.test' });
+for (const key of ['window','document','navigator','HTMLElement','Element','Node','Event','MouseEvent','PointerEvent']) Object.defineProperty(globalThis,key,{configurable:true,value:key==='window'?window:window[key]});
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+globalThis.getComputedStyle = window.getComputedStyle.bind(window);
+Object.defineProperty(window.HTMLElement.prototype,'offsetWidth',{configurable:true,get(){return 120;}});
+window.HTMLElement.prototype.getBoundingClientRect = () => new window.DOMRect(0,0,240,40);
+window.HTMLElement.prototype.setPointerCapture = () => {};
+let root;
+try {
+ const result=await build({absWorkingDir:project,entryPoints:['src/app/pages/main_window/project_view/table_view/components/RowLabelResizeHandle.tsx'],bundle:true,write:false,format:'esm',platform:'node',packages:'external',jsx:'automatic'});
+ const file=resolve(temp,'handle.mjs'); await writeFile(file,result.outputFiles[0].text);
+ const {RowLabelResizeHandle}=await import(pathToFileURL(file));
+ const values=[]; let ends=0;
+ const container=document.createElement('div'); document.body.append(container); root=createRoot(container);
+ await act(async()=>root.render(React.createElement('div',{className:'rdg-row-index'},React.createElement(RowLabelResizeHandle,{onResize:value=>values.push(value),onResizeEnd:()=>ends++}))));
+ const handle=container.querySelector('[role="separator"]'); assert.ok(handle);
+ const fire=(type,clientX,pointerId=1)=>handle.dispatchEvent(new window.PointerEvent(type,{bubbles:true,pointerId,clientX,pointerType:'mouse',button:0,buttons:1}));
+ await act(async()=>{fire('pointerdown',100);fire('pointermove',180);fire('pointerup',180);});
+ assert.deepEqual(values,[160]); assert.equal(ends,1);
+ await act(async()=>{fire('pointerdown',100);fire('pointermove',-1000);fire('pointercancel',-1000);});
+ assert.equal(values.at(-1),80); assert.equal(ends,2);
+ await act(async()=>{fire('pointerdown',100);fire('pointermove',3000);fire('lostpointercapture',3000);});
+ assert.equal(values.at(-1),800); assert.equal(ends,3);
+ container.querySelector('.rdg-row-index').style.direction = 'rtl';
+ await act(async()=>{fire('pointerdown',100);fire('pointermove',20);fire('pointerup',20);});
+ assert.equal(values.at(-1),160); assert.equal(ends,4);
+ console.log('Row label boundary pointer, zoom, clamp and cancellation checks passed');
+} finally { if(root) await act(async()=>root.unmount()); await rm(temp,{recursive:true,force:true}); window.happyDOM.abort(); }
