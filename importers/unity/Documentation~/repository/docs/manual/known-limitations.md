@@ -15,7 +15,3 @@ Plugins can declare owner-scoped settings tables and contracts, including single
 ## Import and persistence boundaries
 
 Engine imports read saved authoring files and produce independent complete databases per source. Runtime readers load a database in full. A source's files are individually replaced atomically with ordinary-failure rollback; multi-file publication is not a power-loss transaction. See [import configuration](../../devcel-cli/docs/importer-pull.md).
-
-## CLI interface-field required flag in v0.0.2
-
-The released v0.0.2 CLI can encounter a parser assertion for `interface column required`. For that version, use the [direct-operation workaround](cli.md#interface-columns). The positional Boolean parsing is fixed in the current source and will require a newer release.
