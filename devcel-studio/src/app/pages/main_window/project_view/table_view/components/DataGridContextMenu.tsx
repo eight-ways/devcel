@@ -1,7 +1,7 @@
 import { useI18n } from '@/app/i18n';
 import { PluginContextItems } from '@/app/components/plugins/PluginExtensions';
 import React, { useEffect, useRef } from 'react';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Pencil } from 'lucide-react';
 
 interface ContextMenuProps {
   type: 'row' | 'column';
@@ -22,6 +22,7 @@ interface ContextMenuProps {
   // Column actions
   onAddColumnLeft?: () => void;
   onAddColumnRight?: () => void;
+  onEditColumn?: () => void;
   onDeleteColumn?: () => void;
 }
 
@@ -37,8 +38,7 @@ export const DataGridContextMenu: React.FC<ContextMenuProps> = ({
   onAddRowAbove,
   onAddRowBelow,
   onDeleteRow,
-  onAddColumnLeft,
-  onAddColumnRight,
+  onEditColumn,
   onDeleteColumn
 }) => {
   const { t } = useI18n();
@@ -67,6 +67,10 @@ export const DataGridContextMenu: React.FC<ContextMenuProps> = ({
     };
   }, [onClose]);
   
+  useEffect(() => {
+    if (type === 'column') menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
+  }, [type, x, y]);
+
   // Adjust position to keep menu on screen
   useEffect(() => {
     if (menuRef.current) {
@@ -93,6 +97,17 @@ export const DataGridContextMenu: React.FC<ContextMenuProps> = ({
   return (
     <div
       ref={menuRef}
+      role={type === 'column' ? 'menu' : undefined}
+      onKeyDown={event => {
+        if (type !== 'column' || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'));
+        if (!items.length) return;
+        event.preventDefault();
+        const index = items.indexOf(document.activeElement as HTMLButtonElement);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 :
+          event.key === 'ArrowDown' ? (index + 1) % items.length : (index <= 0 ? items.length - 1 : index - 1);
+        items[next].focus();
+      }}
       className="fixed z-50 bg-background rounded-lg shadow-lg border border-border py-1 min-w-[180px]"
       style={{ left: x, top: y }}
     >
@@ -133,34 +148,16 @@ export const DataGridContextMenu: React.FC<ContextMenuProps> = ({
         </>
       ) : (
         <>
-          <button disabled={!addAllowed} title={!addAllowed ? t('table.edit.structureBlocked') : undefined}
-            onClick={() => {
-              onAddColumnLeft?.();
-              onClose();
-            }}
-            className="w-full px-3 py-2 text-sm text-left hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('grid.insertColumnLeft')}</span>
+          <button role="menuitem" disabled={!metadataAllowed} type="button"
+            onClick={() => { onEditColumn?.(); onClose(); }}
+            className="w-full px-3 py-2 text-sm text-start hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+            <Pencil className="w-4 h-4" />
+            <span>{t('column.editorTitle', { target: 'column', action: 'edit' })}</span>
           </button>
-          <button disabled={!addAllowed} title={!addAllowed ? t('table.edit.structureBlocked') : undefined}
-            onClick={() => {
-              onAddColumnRight?.();
-              onClose();
-            }}
-            className="w-full px-3 py-2 text-sm text-left hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('grid.insertColumnRight')}</span>
-          </button>
-          <div className="border-t border-border my-1" />
-          <button disabled={!deleteAllowed} title={!deleteAllowed ? t('table.edit.structureBlocked') : undefined}
-            onClick={() => {
-              onDeleteColumn?.();
-              onClose();
-            }}
-            className="w-full px-3 py-2 text-sm text-left hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-red-600"
-          >
+          <button role="menuitem" disabled={!deleteAllowed} type="button"
+            title={!deleteAllowed ? t('table.edit.structureBlocked') : undefined}
+            onClick={() => { onDeleteColumn?.(); onClose(); }}
+            className="w-full px-3 py-2 text-sm text-start hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-red-600">
             <Trash2 className="w-4 h-4" />
             <span>{t('grid.deleteColumn')}</span>
           </button>
