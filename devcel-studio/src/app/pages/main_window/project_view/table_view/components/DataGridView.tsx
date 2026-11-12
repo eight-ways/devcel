@@ -459,7 +459,9 @@ const DataGridView: React.FC<DataGridViewProps> = ({
     rowIndex?: number;
     recordUuid?: string;
     columnIndex?: number;
+    columnUuid?: string;
   } | null>(null);
+  useLayoutEffect(() => { setContextMenu(null); }, [projectSessionId, incomingTableData.uuid]);
   const repeatOperation = useRef<{ kind: 'fill'; direction: 'down' | 'right' } | { kind: 'clear' } | { kind: 'input'; value: string } | null>(null);
   useLayoutEffect(() => { repeatOperation.current = null; }, [projectSessionId, incomingTableData.uuid]);
   const [structuralHint, setStructuralHint] = useState(false);
@@ -1114,7 +1116,9 @@ const DataGridView: React.FC<DataGridViewProps> = ({
         // Use the new header event handlers
         onHeaderContextMenu: (e) => {
           e.preventDefault();
-          setColumnEditor(current => current || { target: { mode: 'table', target_uuid: tableUuid, column_uuid: column.uuid }, tab: 'display' });
+          e.stopPropagation();
+          setCellMenu(null);
+          setContextMenu({ type: 'column', x: e.clientX, y: e.clientY, columnUuid: column.uuid });
         },
         onHeaderDoubleClick: () => {
           setColumnEditor(current => current || { target: { mode: 'table', target_uuid: tableUuid, column_uuid: column.uuid } });
@@ -1924,7 +1928,7 @@ const DataGridView: React.FC<DataGridViewProps> = ({
       };
       return <div className={`rdg-advanced-row rdg-transpose-field-header${previewActive && (definition.min_version) > releaseVersion ? ' rdg-version-excluded' : ''}`}
         data-row-id={row.rowId} onDoubleClick={() => openEditor()}
-        onContextMenu={event => { event.preventDefault(); event.stopPropagation(); openEditor('display'); }}>
+        onContextMenu={event => { event.preventDefault(); event.stopPropagation(); setCellMenu(null); setContextMenu({ type: 'column', x: event.clientX, y: event.clientY, columnUuid: definition.uuid }); }}>
         {tableData.metadata.edit_permissions.add_columns && [...(rowIdx > 0 ? ['left'] as const : []), ...(rowIdx === transposedRows.length - 1 ? ['right'] as const : [])].map(position => <button
           key={position} type="button" className={`rdg-transpose-column-insert rdg-transpose-column-insert-${position}`}
           title={translation.t(position === 'left' ? 'grid.addColumnLeft' : 'grid.addColumnRight')}
@@ -2272,6 +2276,21 @@ const DataGridView: React.FC<DataGridViewProps> = ({
           onDeleteRow={contextMenu.rowIndex !== undefined ?
             () => handleDeleteRow(tableData.records.findIndex(record => record.uuid === contextMenu.recordUuid)) : undefined}
         />
+      )}
+
+      {contextMenu?.type === 'column' && contextMenu.columnUuid && (
+        <DataGridContextMenu type="column" x={contextMenu.x} y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          metadataAllowed={!isUpdating && !mutation.busy && snapshotReady && !interactionLocked}
+          deleteAllowed={tableData.metadata.edit_permissions.delete_columns && !isUpdating && !mutation.busy && snapshotReady && !interactionLocked}
+          onEditColumn={() => {
+            if (!getCurrentPresentation() || !tableData.schema.columns.some(column => column.uuid === contextMenu.columnUuid)) return;
+            setColumnEditor(current => current || { target: { mode: 'table', target_uuid: tableData.uuid, column_uuid: contextMenu.columnUuid! } });
+          }}
+          onDeleteColumn={() => {
+            if (tableData.metadata.edit_permissions.delete_columns && tableData.schema.columns.some(column => column.uuid === contextMenu.columnUuid))
+              void handleDeleteColumn(contextMenu.columnUuid!);
+          }} />
       )}
 
       {cellMenu && <div className="fixed inset-0 z-[70]" onClick={closeCellMenu} onContextMenu={event => { event.preventDefault(); closeCellMenu(); }} onKeyDown={event => {
