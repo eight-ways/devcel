@@ -769,4 +769,9 @@ button:hover > .rdg-insert-icon circle { fill: hsl(var(--muted)); }
 
 /* The frozen row-label boundary is draggable throughout the header and rows. */
 .rdg-row-label-resize { position: absolute; inset-block: 0; inset-inline-end: 0; width: 10px; z-index: 20; cursor: col-resize; touch-action: none; }
-.rdg-row-label-resize:hover { background: hsl(var(--primary) / 0.2); }
+/* Resizing the label is independent of inserting rows. Pointer capture keeps
+   :active on the handle while the user drags beyond its original edge. */
+.rdg:has(.rdg-row-label-resize:is(:hover, :active)) :is(.rdg-row-insert-control, .rdg-first-row-insert) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
